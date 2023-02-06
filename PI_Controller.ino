@@ -5,12 +5,12 @@
 
 // Motor driver direction pin
 const byte EA = 5;   // Right wheel PWM pin
-const byte I1 = 4;   // Right wheel direction digital pin 1
-const byte I2 = 3;   // Right wheel direction digital pin 2
+const byte I1 = 3;   // Right wheel direction digital pin 1
+const byte I2 = 4;   // Right wheel direction digital pin 2
 
 const byte EB = 6;   //Left wheel PWM pin
-const byte I3 = 7;  //Left wheel direction digital pin 1
-const byte I4 = 8;   //Left wheel direction digital pin 2
+const byte I3 = 8;  //Left wheel direction digital pin 1
+const byte I4 = 7;   //Left wheel direction digital pin 2
 
 // Motor PWM command variables [0-255]
 int uL = 0;
@@ -21,8 +21,8 @@ const byte SIGNAL_A_L = 12;
 const byte SIGNAL_B_L = 11;
 
 // Right wheel encoder digital pins
-const byte SIGNAL_A_R = 10;
-const byte SIGNAL_B_R = 9;
+const byte SIGNAL_A_R = 9;
+const byte SIGNAL_B_R = 10;
 
 // Encoder ticks per (motor) revolution (TPR)
 const int TPR = 3000;
@@ -48,10 +48,10 @@ double dVL;
 double dVR;
 
 // Overall desired vehicle translational speed, positive forward, negative backwards
-double V = 0.8;
+double V = 0.5;
 
 // Overall desired vehicle turning rate, positive cw, negative ccw
-double omega = 0.2;
+double omega = 0;
 
 // Sampling interval for measurements in milliseconds
 const int T = 100;
@@ -61,8 +61,8 @@ long t_now = 0;
 long t_last = 0;
 
 // Integral error
-long e_intL = 0;
-long e_intR = 0;
+double e_intL = 0;
+double e_intR = 0;
 
 // Compute vehicle speed [m/s]
 double getSpeed(double V_L, double V_R)
@@ -91,7 +91,7 @@ double getRightWheelSpeed (double omega, double V)
 short PI_controller (double e_now, double k_p, double e_int, double k_i)
 {
   short u;
-  u = short(k_p * e_now);
+  u = short(k_p * e_now + k_i * e_int);
   if (u > 255)
   {
     u = 255;
@@ -122,11 +122,11 @@ void decodeEncoderTicks_R()
 {
     if (digitalRead(SIGNAL_B_R == HIGH))
     {
-        encoder_ticks_R++;
+        encoder_ticks_R--;
     }
     else
     {
-        encoder_ticks_R--;
+        encoder_ticks_R++;
     }
 }
 
@@ -157,9 +157,14 @@ void setup()
     dVL = getLeftWheelSpeed(omega, V);
     dVR = getRightWheelSpeed(omega, V);
 
+    Serial.print(dVL);
+    Serial.print("\n");
+    Serial.print(dVR);
+    Serial.print("\n");
+
     // Print a message
-    //Serial.print("Program initialized.");
-    //Serial.print("\n");
+    Serial.print("Program initialized.");
+    Serial.print("\n");
 }
 
 void loop()
@@ -202,10 +207,21 @@ void loop()
     }
 
     // Set the wheel motor PWM command [0-255]
-    uL = PI_controller (dVL - V_L, 200, e_intL, 100);
-    uR = PI_controller (dVR - V_R, 200, e_intR, 100);
-    e_intL += dVL - V_L;
-    e_intR += dVR - V_R;
+    uL = PI_controller (dVL - V_L, 100, e_intL, 50);
+    uR = PI_controller (dVR - V_R, 100, e_intR, 50);
+
+    if (abs(uL) < 255){
+      e_intL += (dVL - V_L);
+    }
+    if (abs(uR) < 255){
+      e_intR += (dVR - V_R);
+    }
+    
+    
+
+    
+    
+
     
     Serial.print("Wheel speeds\n");
     Serial.print(V_L);
@@ -214,13 +230,32 @@ void loop()
     Serial.print("\n");
     
 
+    Serial.print("u\n");
+    Serial.print(uL);
+    Serial.print("\n");
+    Serial.print(uR);
+    Serial.print("\n");
+
+    Serial.print("Proportional Error\n");
+    Serial.print(dVL - V_L);
+    Serial.print("\n");
+    Serial.print(dVR - V_R);
+    Serial.print("\n");
     
+    Serial.print("Integral Error\n");
+    Serial.print(e_intL);
+    Serial.print("\n");
+    Serial.print(e_intR);
+    Serial.print("\n");
+    
+
+    /*
     Serial.print("PWM signal\n");
     Serial.print(uL);
     Serial.print("\n");
     Serial.print(uR);
     Serial.print("\n");
-    
+    */
 
     
     
@@ -228,16 +263,16 @@ void loop()
     // Select a direction
     if (uL > 0)
     {
-      digitalWrite(I3, LOW);
-      digitalWrite(I4, HIGH);
-    }
-    else
-    {
       digitalWrite(I3, HIGH);
       digitalWrite(I4, LOW);
     }
+    else
+    {
+      digitalWrite(I3, LOW);
+      digitalWrite(I4, HIGH);
+    }
 
-    if (uR > 0)
+    if (uR < 0)
     {
       digitalWrite(I1, HIGH);
       digitalWrite(I2, LOW);
