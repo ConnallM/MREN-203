@@ -17,12 +17,12 @@ int uL = 0;
 int uR = 0;
 
 // Left wheel encoder digital pins
-const byte SIGNAL_A_L = 12;
-const byte SIGNAL_B_L = 11;
+const byte SIGNAL_A_L = 12; //12;
+const byte SIGNAL_B_L = 11; //11;
 
 // Right wheel encoder digital pins
-const byte SIGNAL_A_R = 9;
-const byte SIGNAL_B_R = 10;
+const byte SIGNAL_A_R = 10;
+const byte SIGNAL_B_R = 9;
 
 // Encoder ticks per (motor) revolution (TPR)
 const int TPR = 3000;
@@ -204,18 +204,20 @@ void loop()
         // Reset the encoder ticks counter
         encoder_ticks_L = 0;
         encoder_ticks_R = 0;
-    }
 
-    // Set the wheel motor PWM command [0-255]
-    uL = PI_controller (dVL - V_L, 100, e_intL, 50);
-    uR = PI_controller (dVR - V_R, 100, e_intR, 50);
+        // Set the wheel motor PWM command [0-255]
+      uL = PI_controller (dVL - V_L, 100, e_intL, 50);
+      uR = PI_controller (dVR - V_R, 100, e_intR, 50);
 
-    if (abs(uL) < 255){
-      e_intL += (dVL - V_L);
-    }
-    if (abs(uR) < 255){
-      e_intR += (dVR - V_R);
-    }
+      if (abs(uL) < 255){
+        e_intL += (dVL - V_L);
+      }
+      if (abs(uR) < 255){
+        e_intR += (dVR - V_R);
+      }
+    
+
+    
     
     
 
@@ -249,13 +251,14 @@ void loop()
     Serial.print("\n");
     
 
-    /*
+    
     Serial.print("PWM signal\n");
     Serial.print(uL);
     Serial.print("\n");
     Serial.print(uR);
     Serial.print("\n");
-    */
+
+    //delay(500);
 
     
     
@@ -288,4 +291,6 @@ void loop()
     // PWM command to the motor driver
     analogWrite(EA, abs(uR));
     analogWrite(EB, abs(uL));
+
+    }
 }
