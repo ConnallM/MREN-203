@@ -149,8 +149,15 @@ double getCO2(){
         Serial.print("CO2: ");
         Serial.print(scd.CO2, 3);
         Serial.println(" ppm");
+        Serial.print("TVOC ");
+        Serial.print(sgp.TVOC);
+        Serial.print(" ppb\t");
+        Serial.print("eCO2 ");
+        Serial.print(sgp.eCO2);
+        Serial.println(" ppm");
 
-        return scd.CO2;
+
+        return (scd.CO2 + sgp.eCO2);
     }
 }
 
