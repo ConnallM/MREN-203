@@ -146,6 +146,7 @@ double getCO2(){
             return;
         }
 
+        /*
         Serial.print("CO2: ");
         Serial.print(scd.CO2, 3);
         Serial.println(" ppm");
@@ -155,47 +156,14 @@ double getCO2(){
         Serial.print("eCO2 ");
         Serial.print(sgp.eCO2);
         Serial.println(" ppm");
+        */
 
 
         return (scd.CO2 + sgp.eCO2);
     }
 }
 
-// This function applies PWM inputs (u_L and u_R) to the right and left wheels
-void driveVehicle(short u_L, short u_R)
-{
-    // LEFT WHEEL
-    if (u_L < 0) // If the controller calculated a negative input...
-    {
-        digitalWrite(I3, HIGH); // Drive backward (left wheels)
-        digitalWrite(I4, LOW);  // Drive backward (left wheels)
 
-        analogWrite(EB, -u_L); // Write left motors command
-    }
-    else // the controller calculated a positive input
-    {
-        digitalWrite(I3, LOW);  // Drive forward (left wheels)
-        digitalWrite(I4, HIGH); // Drive forward (left wheels)
-
-        analogWrite(EB, u_L); // Write left motors command
-    }
-
-    // RIGHT WHEEL
-    if (u_R < 0) // If the controller calculated a negative input...
-    {
-        digitalWrite(I1, LOW);  // Drive backward (right wheels)
-        digitalWrite(I2, HIGH); // Drive backward (right wheels)
-
-        analogWrite(EA, -u_R); // Write right motors command
-    }
-    else // the controller calculated a positive input
-    {
-        digitalWrite(I1, HIGH); // Drive forward (right wheels)
-        digitalWrite(I2, LOW);  // Drive forward (right wheels)
-
-        analogWrite(EA, u_R); // Write right motors command
-    }
-}
 
 // This function is called when SIGNAL_AL (left encoder) goes HIGH
 void decodeEncoderTicks_L()
@@ -293,6 +261,112 @@ short PI_controller(double e_now, double e_int, double k_P, double k_I)
     return u;
 }
 
+// This function applies PWM inputs (u_L and u_R) to the right and left wheels
+void driveVehicle(double omega_d, double v_d)
+{
+    v_Ld = compute_L_wheel_speed(v_d, omega_d);
+    v_Rd = compute_R_wheel_speed(v_d, omega_d);
+    
+    t_now = millis();
+
+    // Perform control update every T milliseconds
+    if (t_now - t_last >= T)
+    {
+
+        // Set the desired vehicle speed and turning rate
+        v_d = 0.5;     // [m/s]
+        omega_d = 0.0; // [rad/s]
+
+        // Estimate the rotational speed of each wheel [rad/s]
+        omega_L = compute_wheel_rate(encoder_ticks_L, (double)(t_now - t_last));
+        omega_R = compute_wheel_rate(encoder_ticks_R, (double)(t_now - t_last));
+
+        // Compute the speed of each wheel [m/s]
+        v_L = compute_wheel_speed(omega_L);
+        v_R = compute_wheel_speed(omega_R);
+
+        /*
+        Serial.print("Left wheel speed ");
+        Serial.print(v_L);
+        Serial.print("\n");
+        Serial.print("Right wheel speed ");
+        Serial.print(v_R);
+        Serial.print("\n");
+        */
+
+        // Compute the speed of the vehicle [m/s]
+        v = compute_vehicle_speed(v_L, v_R);
+
+        // Compute the turning rate of the vehicle [rad/s]
+        omega = compute_vehicle_rate(v_L, v_R);
+
+        // Record the current time [ms]
+        t_last = t_now;
+
+        // Reset the encoder ticks counter
+        encoder_ticks_L = 0;
+        encoder_ticks_R = 0;
+
+        // Compute errors
+        e_L = v_Ld - v_L;
+        e_R = v_Rd - v_R;
+        
+        Serial.print("Left and right errors");
+        Serial.print("\n");
+        Serial.print(e_L);
+        Serial.print("\t");
+        Serial.print(e_R);
+        Serial.print("\n");
+        
+
+        // Integrate errors with anti-windup
+        if (abs(u_L) < 255)
+        {
+            e_Lint += e_L;
+        }
+        if (abs(u_R) < 255)
+        {
+            e_Rint += e_R;
+        }
+
+        // Compute control signals using PI controller
+        u_L = PI_controller(e_L, e_Lint, KP, KI);
+        u_R = PI_controller(e_R, e_Rint, KP, KI);
+    
+      // LEFT WHEEL
+      if (u_L < 0) // If the controller calculated a negative input...
+      {
+          digitalWrite(I3, HIGH); // Drive backward (left wheels)
+          digitalWrite(I4, LOW);  // Drive backward (left wheels)
+  
+          analogWrite(EB, -u_L); // Write left motors command
+      }
+      else // the controller calculated a positive input
+      {
+          digitalWrite(I3, LOW);  // Drive forward (left wheels)
+          digitalWrite(I4, HIGH); // Drive forward (left wheels)
+  
+          analogWrite(EB, u_L); // Write left motors command
+      }
+  
+      // RIGHT WHEEL
+      if (u_R < 0) // If the controller calculated a negative input...
+      {
+          digitalWrite(I1, LOW);  // Drive backward (right wheels)
+          digitalWrite(I2, HIGH); // Drive backward (right wheels)
+  
+          analogWrite(EA, -u_R); // Write right motors command
+      }
+      else // the controller calculated a positive input
+      {
+          digitalWrite(I1, HIGH); // Drive forward (right wheels)
+          digitalWrite(I2, LOW);  // Drive forward (right wheels)
+  
+          analogWrite(EA, u_R); // Write right motors command
+      }
+    }
+}
+
 /* SETUP FUNCTION */
 
 void setup()
@@ -367,101 +441,16 @@ void loop()
     //Serial.print("Sharp reading ");
     //Serial.print(analogRead(FIR));
     //Serial.print("\n");
-    if (analogRead(FIR) > 300){
-      v_Ld = 0;
-      v_Rd = 0;
-    }
-    else{
-      // Get left and right wheel desired speeds
-      v_Ld = compute_L_wheel_speed(v_d, omega_d);
-      v_Rd = compute_R_wheel_speed(v_d, omega_d);
-    }
-    // Get the elapsed time [ms]
-    t_now = millis();
-
-    // Perform control update every T milliseconds
-    if (t_now - t_last >= T)
+    if (analogRead(FIR) > 300)
     {
-
-        // Set the desired vehicle speed and turning rate
-        v_d = 0.5;     // [m/s]
-        omega_d = 0.0; // [rad/s]
-
-        // Estimate the rotational speed of each wheel [rad/s]
-        omega_L = compute_wheel_rate(encoder_ticks_L, (double)(t_now - t_last));
-        omega_R = compute_wheel_rate(encoder_ticks_R, (double)(t_now - t_last));
-
-        // Compute the speed of each wheel [m/s]
-        v_L = compute_wheel_speed(omega_L);
-        v_R = compute_wheel_speed(omega_R);
-
-        // Compute the speed of the vehicle [m/s]
-        v = compute_vehicle_speed(v_L, v_R);
-
-        // Compute the turning rate of the vehicle [rad/s]
-        omega = compute_vehicle_rate(v_L, v_R);
-
-        // Record the current time [ms]
-        t_last = t_now;
-
-        // Reset the encoder ticks counter
-        encoder_ticks_L = 0;
-        encoder_ticks_R = 0;
-
-        // Compute errors
-        e_L = v_Ld - v_L;
-        e_R = v_Rd - v_R;
-        /*
-        Serial.print("Left and right errors");
-        Serial.print("\n");
-        Serial.print(e_L);
-        Serial.print("\n");
-        Serial.print(e_R);
-        Serial.print("\n");
-        */
-
-        // Integrate errors with anti-windup
-        if (abs(u_L) < 255)
-        {
-            e_Lint += e_L;
-        }
-        if (abs(u_R) < 255)
-        {
-            e_Rint += e_R;
-        }
-
-        // Compute control signals using PI controller
-        u_L = PI_controller(e_L, e_Lint, KP, KI);
-        u_R = PI_controller(e_R, e_Rint, KP, KI);
-
-        // Drive the vehicle
-        driveVehicle(u_L, u_R);
-
-        // Print some stuff to the serial monitor (or plotter)
-        /*
-        Serial.print("Vehicle_speed_[m/s]:");
-        Serial.print(v);
-        Serial.print(",");
-        Serial.print("Turning_rate_[rad/s]:");
-        Serial.print(omega);
-        Serial.print(",");
-        Serial.print("u_L:");
-        Serial.print(u_L);
-        Serial.print(",");
-        Serial.print("u_R:");
-        Serial.print(u_R);
-        Serial.print("\n");
-        */
-        /*
-        Serial.print("Left wheel speed ");
-        Serial.print(v_L);
-        Serial.print("\n");
-        Serial.print("Right wheel speed ");
-        Serial.print(v_R);
-        Serial.print("\n");
-        */
+      driveVehicle(0, 0);
     }
-
+    else
+    {
+      // Get left and right wheel desired speeds
+      driveVehicle(0, 0.5);
+    }
+    
     CO2 = getCO2();
     displayCO2(CO2);
     
