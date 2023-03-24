@@ -1,7 +1,10 @@
-
+#include <ros.h>
+#include <geometry_msgs/Twist.h>
 #include <Adafruit_SCD30.h>
 #include <Adafruit_SGP30.h>
 #include <Adafruit_NeoPixel.h>
+
+ros::NodeHandle nh;
 
 Adafruit_SCD30 scd;
 Adafruit_SGP30 sgp;
@@ -80,8 +83,8 @@ double v = 0.0;     // [m/s]
 double omega = 0.0; // [rad/s]
 
 // Variables to store desired vehicle speed and turning rate
-double v_d = 0.5;     // [m/s]
-double omega_d = 0.0; // [rad/s]
+double v_d;     // [m/s]
+double omega_d; // [rad/s]
 
 // Variable to store desired wheel speeds [m/s]
 double v_Ld = 0.0;
@@ -100,6 +103,13 @@ double e_Rint = 0.0;
 int pixelNum;
 
 /* HELPER FUNCTIONS */
+
+void messageCb( const geometry_msgs::Twist& msg){
+  omega_d = msg.angular.z * 4;
+  v_d = msg.linear.x;
+}
+
+ros::Subscriber<geometry_msgs::Twist> sub("cmd_vel", &messageCb );
 
 void displayCO2(double CO2){
   pixels->clear(); // Set all pixel colors to 'off'
@@ -406,7 +416,10 @@ void setup()
     attachInterrupt(digitalPinToInterrupt(SIGNAL_AR), decodeEncoderTicks_R,
                     RISING);
 
-     if (!scd.begin())
+    nh.initNode();
+    nh.subscribe(sub);
+
+    if (!scd.begin())
     {
         Serial.println("Sensor not found :(");
         while (1)
@@ -441,6 +454,8 @@ void loop()
     //Serial.print("Sharp reading ");
     //Serial.print(analogRead(FIR));
     //Serial.print("\n");
+    nh.spinOnce();
+
     if (analogRead(FIR) > 300)
     {
       driveVehicle(0, 0);
@@ -448,7 +463,7 @@ void loop()
     else
     {
       // Get left and right wheel desired speeds
-      driveVehicle(0, 0.5);
+      driveVehicle(omega_d, v_d);
     }
     
     CO2 = getCO2();
