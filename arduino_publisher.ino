@@ -3,45 +3,39 @@
 #include "co2.h"
 #include "drive.h"
 
- ros::Publisher pub_CO2("CO2", &CO2_msg);
-
+//Setup ROS node and publisher
+std_msgs::Float32 CO2_msg;
+ros::Publisher pub_CO2("CO2", &CO2_msg);
 ros::NodeHandle nh;
 
+//CO2 concentration in ppm
 double CO2Val;
 
 // Variables to store desired vehicle speed and turning rate
-double v_d;     // [m/s]
-double omega_d; // [rad/s]
-
-/* PIN CONNECTIONS */
+double v_d = 0.25;     // [m/s]
+double omega_d = 0.5; // [rad/s]
 
 // Sharp sensor pins
 const byte FIR = A0;
 const byte LIR = A1;
 const byte RIR = A2;
 
-/* HELPER FUNCTIONS */
-
-/* SETUP FUNCTION */
-
+//Setup
 void setup()
 {
-    // Open the serial port at 9600 bps
+    //Open the serial port at 9600 bps
     Serial.begin(9600);
 
+    //Initialize program
     nh.initNode();
     nh.advertise(pub_temp);
     motorInit();
     CO2Init();
 }
 
-/* MAIN PROGRAM LOOP */
-
+//Main loop
 void loop()
 {
-    //Serial.print("Sharp reading ");
-    //Serial.print(analogRead(FIR));
-    //Serial.print("\n");
     nh.spinOnce();
 
     //Object detected
@@ -62,9 +56,11 @@ void loop()
     }
     else
     {
-      driveVehicle(omega_d, v_d);
+      drive forwards
+      driveVehicle(0, v_d);
     }
     
+    //Get the CO2 concentration, display to NeoPixel array, and publish the data to ROS
     CO2Val = getCO2();
     displayCO2(CO2Val);
     CO2_msg.data =CO2Val;
