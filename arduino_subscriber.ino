@@ -5,60 +5,59 @@
 
 ros::NodeHandle nh;
 
+//CO2 concentration in ppm
 double CO2Val;
 
 // Variables to store desired vehicle speed and turning rate
 double v_d;     // [m/s]
 double omega_d; // [rad/s]
 
-/* PIN CONNECTIONS */
-
-// Sharp sensor pins
+//Sharp sensor pins
 const byte FIR = A0;
 
-/* HELPER FUNCTIONS */
-
+//Get desired translational and angular velocities from ROS
 void messageCb( const geometry_msgs::Twist& msg){
   omega_d = msg.angular.z * 2;
   v_d = msg.linear.x / 2;
 }
 
+//Setup subscriber
 ros::Subscriber<geometry_msgs::Twist> sub("cmd_vel", &messageCb );
 
-/* SETUP FUNCTION */
-
+//Setup
 void setup()
 {
-    // Open the serial port at 9600 bps
-    Serial.begin(9600);
-
-    nh.initNode();
-    nh.subscribe(sub);
-    motorInit();
-    CO2Init();
+  // Open the serial port at 9600 bps
+  Serial.begin(9600);
+    
+  //Initialize program
+  nh.initNode();
+  nh.subscribe(sub);
+  motorInit();
+  CO2Init();
 }
 
-/* MAIN PROGRAM LOOP */
-
+//Main
 void loop()
 {
-    //Serial.print("Sharp reading ");
-    //Serial.print(analogRead(FIR));
-    //Serial.print("\n");
-    nh.spinOnce();
+  //Serial.print("Sharp reading ");
+  //Serial.print(analogRead(FIR));
+  //Serial.print("\n");
+  nh.spinOnce();
 
-    if (analogRead(FIR) > 300)
+  //Dont allow forward motion if an object is in front of the robot
+  if (analogRead(FIR) > 300)
     {
       driveVehicle(0, 0);
     }
-    else
+  else
     {
-      // Get left and right wheel desired speeds
       driveVehicle(omega_d, v_d);
     }
     
-    CO2Val = getCO2();
-    displayCO2(CO2Val);
+  //Get CO2 concentration and display to the NeoPixel array
+  CO2Val = getCO2();
+  displayCO2(CO2Val);
     
     
 }
