@@ -19,8 +19,8 @@ const byte FIR = A0;
 /* HELPER FUNCTIONS */
 
 void messageCb( const geometry_msgs::Twist& msg){
-  omega_d = msg.angular.z * 4;
-  v_d = msg.linear.x;
+  omega_d = msg.angular.z * 2;
+  v_d = msg.linear.x / 2;
 }
 
 ros::Subscriber<geometry_msgs::Twist> sub("cmd_vel", &messageCb );
