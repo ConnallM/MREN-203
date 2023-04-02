@@ -1,70 +1,63 @@
 #include <ros.h>
-#include <std_msgs/Float32.h>
+#include <geometry_msgs/Twist.h>
 #include "co2.h"
 #include "drive.h"
 
-//Setup ROS node and publisher
-std_msgs::Float32 CO2_msg;
-ros::Publisher pub_CO2("CO2", &CO2_msg);
 ros::NodeHandle nh;
 
 //CO2 concentration in ppm
 double CO2Val;
 
 // Variables to store desired vehicle speed and turning rate
-double v_d = 0.25;     // [m/s]
-double omega_d = 0.5; // [rad/s]
+double v_d;     // [m/s]
+double omega_d; // [rad/s]
 
-// Sharp sensor pins
+//Sharp sensor pins
 const byte FIR = A0;
-const byte LIR = A1;
-const byte RIR = A2;
+
+//Get desired translational and angular velocities from ROS
+void messageCb( const geometry_msgs::Twist& msg){
+  omega_d = msg.angular.z * 2;
+  v_d = msg.linear.x / 2;
+}
+
+//Setup subscriber
+ros::Subscriber<geometry_msgs::Twist> sub("cmd_vel", &messageCb );
 
 //Setup
 void setup()
 {
-    //Open the serial port at 9600 bps
-    Serial.begin(9600);
-
-    //Initialize program
-    nh.initNode();
-    nh.advertise(pub_CO2);
-    motorInit();
-    CO2Init();
+  // Open the serial port at 9600 bps
+  Serial.begin(9600);
+    
+  //Initialize program
+  nh.initNode();
+  nh.subscribe(sub);
+  motorInit();
+  CO2Init();
 }
 
-//Main loop
+//Main
 void loop()
 {
-    nh.spinOnce();
+  //Serial.print("Sharp reading ");
+  //Serial.print(analogRead(FIR));
+  //Serial.print("\n");
+  nh.spinOnce();
 
-    //Object detected
-    if (analogRead(FIR) > 500)
+  //Dont allow forward motion if an object is in front of the robot
+  if (analogRead(FIR) > 300)
     {
-      if (analogRead(LIR) > analogRead(RIR)){
-        //Turn right
-        while (analogRead(FIR) < 1000){
-            driveVehicle(omega_d, 0);
-        }
-      }
-      else{
-        //Turn left
-        while (analogRead(FIR) < 1000){
-            driveVehicle(-omega_d, 0);
-        }
-      }
+      driveVehicle(0, 0);
     }
-    else
+  else
     {
-      //drive forwards
-      driveVehicle(0, v_d);;
+      driveVehicle(omega_d, v_d);
     }
     
-    //Get the CO2 concentration, display to NeoPixel array, and publish the data to ROS
-    CO2Val = getCO2();
-    displayCO2(CO2Val);
-    CO2_msg.data =CO2Val;
-    pub_CO2.publish(&CO2_msg);
+  //Get CO2 concentration and display to the NeoPixel array
+  CO2Val = getCO2();
+  displayCO2(CO2Val);
     
     
 }
