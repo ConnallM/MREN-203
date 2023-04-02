@@ -1,9 +1,9 @@
-import rospy
-import numpy as np
-import matplotlib.pyplot as plt
+import rospy  # Import the rospy package for working with ROS in Python
+import numpy as np  # Import the NumPy package for numerical calculations
+import matplotlib.pyplot as plt  # Import the matplotlib package for creating plots
 
-from std_msgs.msg import Float32
-from nav_msgs.msg import Odometry
+from std_msgs.msg import Float32  # Import the Float32 message type from the std_msgs package
+from nav_msgs.msg import Odometry  # Import the Odometry message type from the nav_msgs package
 
 # Initialize ROS node
 rospy.init_node('plot_node')
