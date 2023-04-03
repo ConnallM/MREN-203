@@ -13,12 +13,27 @@ double CO2Val;
 
 // Variables to store desired vehicle speed and turning rate
 double v_d = 0.25;     // [m/s]
-double omega_d = 0.5; // [rad/s]
+double omega_d = 1; // [rad/s]
 
 // Sharp sensor pins
 const byte FIR = A0;
 const byte LIR = A1;
 const byte RIR = A2;
+
+int minVal;
+int val;
+
+int readIR(const byte IR){
+    minVal = analogRead(IR);
+    for (int i = 0; i < 10; i++){
+      val = analogRead(IR);
+      if (val < minVal){
+        minVal = val;
+      }
+      delay(10);
+    }
+    return minVal;
+}
 
 //Setup
 void setup()
@@ -28,7 +43,7 @@ void setup()
 
     //Initialize program
     nh.initNode();
-    nh.advertise(pub_temp);
+    nh.advertise(pub_CO2);
     motorInit();
     CO2Init();
 }
@@ -39,26 +54,27 @@ void loop()
     nh.spinOnce();
 
     //Object detected
-    if (analogRead(FIR) > 500)
-    {
-      if (analogRead(LIR) > analogRead(RIR)){
-        //Turn left
-        while (analogRead(FIR) < 1000){
-            driveVehicle(omega_d, 0)
+    if (readIR(FIR) > 250){
+      if (readIR(LIR) > readIR(RIR)){
+        //Turn right
+        while (readIR(FIR) > 150){
+            driveVehicle(omega_d, -v_d);
         }
       }
       else{
-        //Turn right
-        while (analogRead(FIR) < 1000){
-            driveVehicle(-omega_d, 0)
+        //Turn left
+        while (readIR(FIR) > 150){
+            driveVehicle(-omega_d, -v_d);
         }
       }
     }
-    else
-    {
-      drive forwards
+    if (readIR(LIR) > 250 or readIR(RIR) > 250){
+      driveVehicle(log(readIR(LIR)) - log(readIR(RIR)), v_d);
+    }
+    else{
       driveVehicle(0, v_d);
     }
+      
     
     //Get the CO2 concentration, display to NeoPixel array, and publish the data to ROS
     CO2Val = getCO2();
