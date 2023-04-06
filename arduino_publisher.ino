@@ -30,7 +30,7 @@ int readIR(const byte IR){
       if (val < minVal){
         minVal = val;
       }
-      delay(10);
+      delay(5);
     }
     return minVal;
 }
